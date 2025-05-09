@@ -2,13 +2,13 @@
 
 Active Call provides a standardized way to create service objects.
 
-<div align="center" style="margin-top: 50px;">
-  <a href="https://platform45.com?utm_source=github&utm_content=active_call">
+<a href="https://platform45.com?utm_source=github&utm_content=active_call">
+  <div align="center" style="margin-top: 50px;">
     <picture>
       <img src="https://github.com/user-attachments/assets/19fd40df-2ce9-4f30-8120-d53f3fbf9f07">
     </picture>
-  </a>
-</div>
+  </div>
+</a>
 
 ## Installation
 
