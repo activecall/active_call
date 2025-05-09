@@ -4,7 +4,7 @@ Active Call provides a standardized way to create service objects.
 
 ![Built by P45](https://github.com/user-attachments/assets/19fd40df-2ce9-4f30-8120-d53f3fbf9f07)
 
-<div style="display: block; text-align: center;">
+<div align="center" style="display: block; text-align: center;">
   <a href="https://platform45.com?utm_source=github&utm_content=active_call" target="_blank">
     <picture>
       <img src="https://github.com/user-attachments/assets/19fd40df-2ce9-4f30-8120-d53f3fbf9f07" style="display: inline;">
