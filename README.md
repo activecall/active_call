@@ -44,7 +44,7 @@ Each service object must define only one public method named `call`.
 
   - Validate the service with `validates`.
 
-  - Use the `before_call` hook to set up anything **after validation** passes.
+  - Use the `before_call` hook to set up anything, like network requests **after validation** passes.
 
   - Validate the request with `validate on: :request`.
 
@@ -69,20 +69,20 @@ Define a service object with optional validations and callbacks.
 ```ruby
 require 'active_call'
 
-class YourGem::SomeResource::CreateService < ActiveCall::Base
-  attr_reader :message, :another_service
+class YourGem::FooResource::CreateService < ActiveCall::Base
+  attr_reader :message, :bar_service, :baz_service
 
   validates :message, presence: true
 
+  before_call :call_mandatory_bar_service, :call_optional_baz_service
+
   validate on: :request do
-    errors.merge!(another_service.errors) unless another_service.success?
+    errors.add(:message, :invalid, message: 'bar is not happy') if bar_service.response[:bar] == '😡 Leave me alone'
   end
 
   validate on: :response do
-    errors.add(:message, :invalid, message: 'cannot be baz') if response[:foo] == 'baz'
+    errors.add(:message, :invalid, message: 'cannot be baz') if response[:foo] == '🤨 Greetings from baz'
   end
-
-  before_call :call_another_service, :strip_message
 
   after_call :log_response
 
@@ -91,23 +91,43 @@ class YourGem::SomeResource::CreateService < ActiveCall::Base
   end
 
   def call
-    { foo: message }
+    { foo: build_message_response }
   end
 
   private
 
-  def call_another_service
-    @another_service = YourGem::SomeResource::GetService.call(id: '1')
+  def call_mandatory_bar_service
+    @bar_service = YourGem::BarResource::CreateService.call(message: message)
+
+    unless bar_service.success?
+      errors.merge!(bar_service.errors)
+      throw :abort
+    end
   end
 
-  def strip_message
-    @message.strip!
+  def call_optional_baz_service
+    @baz_service = YourGem::BazResource::UpdateService.call(id: '1', message: message)
+
+    unless baz_service.success?
+      errors.merge!(baz_service.errors)
+      # No need to `throw :abort` if the service doesn't depend on a result from the `baz_service`.
+    end
+  end
+
+  def build_message_response
+    return baz_service.response[:baz] if baz_service.success?
+
+    bar_service.response[:bar]
   end
 
   def log_response
     puts "Successfully called #{response}"
   end
 end
+
+service = YourGem::FooResource::CreateService.call(message: '👋 Hi there')
+service.response
+# => { foo: '🤩 Greetings from bar' }
 ```
 
 ### Using `call`
@@ -115,7 +135,7 @@ end
 You will get an **errors** object when validation fails.
 
 ```ruby
-service = YourGem::SomeResource::CreateService.call(message: '')
+service = YourGem::FooResource::CreateService.call(message: '')
 service.success? # => false
 service.errors # => #<ActiveModel::Errors [#<ActiveModel::Error attribute=message, type=blank, options={}>]>
 service.errors.full_messages # => ["Message can't be blank"]
@@ -125,7 +145,7 @@ service.response # => nil
 A **response** object on a successful `call` invocation.
 
 ```ruby
-service = YourGem::SomeResource::CreateService.call(message: ' bar ')
+service = YourGem::FooResource::CreateService.call(message: ' bar ')
 service.success? # => true
 service.response # => {:foo=>"bar"}
 ```
@@ -133,7 +153,7 @@ service.response # => {:foo=>"bar"}
 And an **errors** object if you added errors during the `validate, on: :response` validation.
 
 ```ruby
-service = YourGem::SomeResource::CreateService.call(message: 'baz')
+service = YourGem::FooResource::CreateService.call(message: 'baz')
 service.success? # => false
 service.errors # => #<ActiveModel::Errors [#<ActiveModel::Error attribute=message, type=invalid, options={:message=>"cannot be baz"}>]>
 service.errors.full_messages # => ["Message cannot be baz"]
@@ -146,7 +166,7 @@ An `ActiveCall::ValidationError` **exception** gets raised when validation fails
 
 ```ruby
 begin
-  service = YourGem::SomeResource::CreateService.call!(message: '')
+  service = YourGem::FooResource::CreateService.call!(message: '')
 rescue ActiveCall::ValidationError => exception
   exception.errors # => #<ActiveModel::Errors [#<ActiveModel::Error attribute=message, type=blank, options={}>]>
   exception.errors.full_messages # => ["Message can't be blank"]
@@ -156,7 +176,7 @@ end
 A **response** object on a successful `call` invocation.
 
 ```ruby
-service = YourGem::SomeResource::CreateService.call!(message: ' bar ')
+service = YourGem::FooResource::CreateService.call!(message: ' bar ')
 service.success? # => true
 service.response # => {:foo=>"bar"}
 ```
@@ -165,7 +185,7 @@ And an `ActiveCall::RequestError` **exception** gets raised if you added errors 
 
 ```ruby
 begin
-  service = YourGem::SomeResource::CreateService.call!(message: 'baz')
+  service = YourGem::FooResource::CreateService.call!(message: 'baz')
 rescue ActiveCall::RequestError => exception
   exception.errors # => #<ActiveModel::Errors [#<ActiveModel::Error attribute=message, type=invalid, options={:message=>"cannot be baz"}>]>
   exception.errors.full_messages # => ["Message cannot be baz"]
@@ -198,7 +218,7 @@ And implement a service object like so.
 ```ruby
 require 'net/http'
 
-class YourGem::SomeResource::CreateService < YourGem::BaseService
+class YourGem::FooResource::CreateService < YourGem::BaseService
   def call
     Net::HTTP.get_response(URI("http://example.com/api?#{URI.encode_www_form(api_key: api_key)}"))
   end
